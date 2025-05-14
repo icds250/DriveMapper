@@ -24,7 +24,8 @@ namespace DriveMapper
             var mappings = JsonConvert.DeserializeObject<List<DriveMapping>>(configContent); // Use JsonConvert instead of JsonSerializer
             var user = WindowsIdentity.GetCurrent();
             var userName = user.Name.Split('\\')[1];
-            var userGroups = GetUserGroups(userName);
+            var userDomain = user.Name.Split('\\')[0];
+            var userGroups = GetUserGroups(userName, userDomain);
 
             foreach (var mapping in mappings)
             {
@@ -35,12 +36,12 @@ namespace DriveMapper
             }
         }
 
-        static List<string> GetUserGroups(string username)
+        static List<string> GetUserGroups(string username, string userdomain)
         {
             var groups = new List<string>();
             try
             {
-                using (var context = new PrincipalContext(ContextType.Domain))
+                using (var context = new PrincipalContext(ContextType.Domain, userdomain))
                 {
                     var user = UserPrincipal.FindByIdentity(context, username);
                     if (user != null)
