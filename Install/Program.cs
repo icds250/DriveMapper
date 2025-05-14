@@ -9,8 +9,7 @@ namespace DriveMapperInstaller
     {
         static void Main(string[] args)
         {
-            //string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, @"..\DriveMapper\bin\Release\DriveMapper.exe");
-            string exePath = AppDomain.CurrentDomain.BaseDirectory;
+            string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DriveMapper.exe");
             CreateScheduledTask("DriveMapperLogon", exePath, "AtLogon");
             CreateScheduledTask("DriveMapperNetworkChange", exePath, "OnEvent");
         }
