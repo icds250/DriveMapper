@@ -1,0 +1,14 @@
+[
+  {
+    "Name": "SharedDocs",
+    "Group": "ITUsers",
+    "Path": "\\\\fileserver\\shared",
+    "DriveLetter": "Z"
+  },
+  {
+    "Name": "HRDocs",
+    "Group": "HRTeam",
+    "Path": "\\\\fileserver\\hr",
+    "DriveLetter": "Y"
+  }
+]
