@@ -8,7 +8,6 @@ DriveMapper is a utility that maps network drives based on a user's Active Direc
 
 - Reads mapping config from `config.json`
 - Uses Active Directory to determine user group membership
-- Maps drives using native Windows API (no PowerShell or external dependencies)
 - Installer creates two scheduled tasks:
   - At user logon
   - On network change
