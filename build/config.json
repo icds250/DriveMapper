@@ -1,14 +1,17 @@
-[
-  {
-    "Name": "SharedDocs",
-    "Group": "ITUsers",
-    "Path": "\\\\fileserver\\shared",
-    "DriveLetter": "Z"
-  },
-  {
-    "Name": "HRDocs",
-    "Group": "HRTeam",
-    "Path": "\\\\fileserver\\hr",
-    "DriveLetter": "Y"
-  }
-]
+{
+  "Domain": "corp.example.com",
+  "DriveMappings": [
+    {
+      "Name": "Data",
+      "Group": "intune_map_n_drive",
+      "Path": "\\\\server\\data",
+      "DriveLetter": "N"
+    },
+    {
+      "Name": "Photos",
+      "Group": "intune_map_o_drive",
+      "Path": "\\\\server\\photos",
+      "DriveLetter": "O"
+    }
+  ]
+}

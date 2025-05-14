@@ -4,7 +4,7 @@ using System.DirectoryServices.AccountManagement;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
-using Newtonsoft.Json; // Replace System.Text.Json with Newtonsoft.Json
+using Newtonsoft.Json; 
 using System.Linq;
 
 namespace DriveMapper
@@ -21,13 +21,13 @@ namespace DriveMapper
             }
 
             var configContent = File.ReadAllText(configPath);
-            var mappings = JsonConvert.DeserializeObject<List<DriveMapping>>(configContent); // Use JsonConvert instead of JsonSerializer
+            var config = JsonConvert.DeserializeObject<DriveMappingConfig>(configContent); 
             var user = WindowsIdentity.GetCurrent();
             var userName = user.Name.Split('\\')[1];
-            var userDomain = user.Name.Split('\\')[0];
+            var userDomain = config.Domain;
             var userGroups = GetUserGroups(userName, userDomain);
 
-            foreach (var mapping in mappings)
+            foreach (var mapping in config.DriveMappings)
             {
                 if (userGroups.Any(group => group.Equals(mapping.Group, StringComparison.OrdinalIgnoreCase)))
                 {
@@ -55,7 +55,7 @@ namespace DriveMapper
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error retrieving groups for user {username}: {ex.Message}");
+                Console.WriteLine($"Error retrieving groups for user {username} on domain {userdomain}: {ex.Message}");
             }
             return groups;
         }
@@ -97,6 +97,11 @@ namespace DriveMapper
             public string lpProvider = "";
         }
 
+        public class DriveMappingConfig
+        {
+            public string Domain { get; set; }
+            public List<DriveMapping> DriveMappings { get; set; }
+        }
         public class DriveMapping
         {
             public string Name { get; set; }
@@ -105,4 +110,5 @@ namespace DriveMapper
             public string DriveLetter { get; set; }
         }
     }
+
 }
