@@ -23,7 +23,8 @@ namespace DriveMapper
             var configContent = File.ReadAllText(configPath);
             var mappings = JsonConvert.DeserializeObject<List<DriveMapping>>(configContent); // Use JsonConvert instead of JsonSerializer
             var user = WindowsIdentity.GetCurrent();
-            var userGroups = GetUserGroups(user.Name);
+            var userName = user.Name.Split('\\')[1];
+            var userGroups = GetUserGroups(userName);
 
             foreach (var mapping in mappings)
             {

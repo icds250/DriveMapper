@@ -54,7 +54,7 @@ namespace DriveMapperInstaller
 
             string tempXml = Path.GetTempFileName();
             File.WriteAllText(tempXml, xml);
-            System.Diagnostics.Process.Start("schtasks.exe", $"/Create /TN {taskName} /XML {tempXml} /F").WaitForExit();
+            System.Diagnostics.Process.Start("cmd.exe", $"/k schtasks.exe /Create /TN {taskName} /XML {tempXml} /F").WaitForExit();
             File.Delete(tempXml);
         }
     }
