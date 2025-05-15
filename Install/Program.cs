@@ -10,30 +10,31 @@ namespace Install
         {
             if (args.Length < 5)
             {
-                Console.WriteLine("Usage: Install.exe <TargetDirectory> <ScheduledTaskArguments> <ExeName> <install|uninstall> <createTasks:true|false>");
+                Console.WriteLine("Usage: Install.exe <TargetDirectory> <ScheduledTaskArguments> <install|uninstall> <CreateLogonTask:true|false> <CreateNetworkTask:true|false>");
                 Console.WriteLine();
                 Console.WriteLine("Examples:");
-                Console.WriteLine("  Install.exe \"C:\\Program Files\\DriveMapper\" \"-log -config config.json\" DriveMapper.exe install true");
-                Console.WriteLine("  Install.exe \"C:\\Program Files\\DriveMapper\" \"\" DriveMapper.exe uninstall false");
-                Console.WriteLine("  Install.exe \"C:\\Program Files\\DriveMapper\" \"\" DriveMapper.exe install false");
+                Console.WriteLine("  Install.exe \"C:\\Program Files\\DriveMapper\" \"-log -config config.json\" install true true");
+                Console.WriteLine("  Install.exe \"C:\\Program Files\\DriveMapper\" \"\" uninstall false false");
+                Console.WriteLine("  Install.exe \"C:\\Program Files\\DriveMapper\" \"\" install true false");
                 Console.WriteLine();
                 Console.WriteLine("Arguments:");
-                Console.WriteLine("  <TargetDirectory>           Folder where files will be copied");
-                Console.WriteLine("  <ScheduledTaskArguments>    Arguments passed to the exe in the scheduled tasks");
-                Console.WriteLine("  <ExeName>                  Executable name (e.g., DriveMapper.exe)");
-                Console.WriteLine("  <install|uninstall>         Install copies files and optionally creates scheduled tasks");
-                Console.WriteLine("  <createTasks:true|false>    Whether to create or remove scheduled tasks during install/uninstall");
+                Console.WriteLine("  <TargetDirectory>             Folder where files will be copied");
+                Console.WriteLine("  <ScheduledTaskArguments>      Arguments passed to the EXE in the scheduled tasks");
+                Console.WriteLine("  <install|uninstall>           Install copies files and optionally creates scheduled tasks");
+                Console.WriteLine("  <CreateLogonTask:true|false>  Whether to create/remove the logon task");
+                Console.WriteLine("  <CreateNetworkTask:true|false>Whether to create/remove the network trigger task");
                 return;
             }
 
             string targetDir = args[0];
             string taskArgs = args[1];
-            string exeName = args[2];
-            string mode = args[3].ToLower();
-            bool createTasks = bool.TryParse(args[4], out bool ct) && ct;
+            string mode = args[2].ToLower();
+            bool createLogon = bool.TryParse(args[3], out bool cl) && cl;
+            bool createNetwork = bool.TryParse(args[4], out bool cn) && cn;
 
-            string taskLogonName = exeName + "Logon";
-            string taskNetworkName = exeName + "NetworkChange";
+            string exeName = "DriveMapper.exe";
+            string taskLogonName = exeName.Replace(".exe", "") + "Logon";
+            string taskNetworkName = exeName.Replace(".exe", "") + "NetworkChange";
 
             try
             {
@@ -49,10 +50,15 @@ namespace Install
                         File.Copy(file, destPath, true);
                     }
 
-                    if (createTasks)
+                    string exePath = Path.Combine(targetDir, exeName);
+
+                    if (createLogon)
                     {
-                        string exePath = Path.Combine(targetDir, exeName);
                         CreateScheduledTask(taskLogonName, exePath, taskArgs, TaskTriggerType.Logon);
+                    }
+
+                    if (createNetwork)
+                    {
                         CreateScheduledTask(taskNetworkName, exePath, taskArgs, TaskTriggerType.NetworkChange);
                     }
 
@@ -60,13 +66,12 @@ namespace Install
                 }
                 else if (mode == "uninstall")
                 {
-                    if (createTasks)
+                    using (TaskService ts = new TaskService())
                     {
-                        using (TaskService ts = new TaskService())
-                        {
+                        if (createLogon)
                             ts.RootFolder.DeleteTask(taskLogonName, false);
+                        if (createNetwork)
                             ts.RootFolder.DeleteTask(taskNetworkName, false);
-                        }
                     }
 
                     if (Directory.Exists(targetDir))
@@ -94,26 +99,19 @@ namespace Install
                 TaskDefinition td = ts.NewTask();
                 td.RegistrationInfo.Description = $"Run {Path.GetFileName(exePath)} on {triggerType}";
 
-                switch (triggerType)
+                Trigger trigger = triggerType switch
                 {
-                    case TaskTriggerType.Logon:
-                        td.Triggers.Add(new LogonTrigger { Delay = TimeSpan.FromSeconds(10) });
-                        break;
-
-                    case TaskTriggerType.NetworkChange:
-                        td.Triggers.Add(new EventTrigger
-                        {
-                            Subscription = @"<QueryList><Query Id='0' Path='Microsoft-Windows-NetworkProfile/Operational'>
-                                <Select Path='Microsoft-Windows-NetworkProfile/Operational'>
-                                    *[System[Provider[@Name='Microsoft-Windows-NetworkProfile'] and (EventID=10000 or EventID=10001)]]
-                                </Select>
-                            </Query></QueryList>"
-                        });
-                        break;
-
-                    default:
-                        throw new ArgumentException("Unsupported trigger type");
-                }
+                    TaskTriggerType.Logon => new LogonTrigger { Delay = TimeSpan.FromSeconds(10) },
+                    TaskTriggerType.NetworkChange => new EventTrigger
+                    {
+                        Subscription = @"<QueryList><Query Id='0' Path='Microsoft-Windows-NetworkProfile/Operational'>
+    <Select Path='Microsoft-Windows-NetworkProfile/Operational'>
+    *[System[Provider[@Name='Microsoft-Windows-NetworkProfile'] and (EventID=10000 or EventID=10001)]]
+    </Select></Query></QueryList>"
+                    },
+                    _ => throw new ArgumentException("Unsupported trigger type")
+                };
+                td.Triggers.Add(trigger);
 
                 td.Actions.Add(new ExecAction(exePath, arguments, null));
 
