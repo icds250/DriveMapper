@@ -17,14 +17,24 @@ DriveMapper is a utility that maps network drives based on a user's Active Direc
 Place your `config.json` next to `DriveMapper.exe` and define drive mappings as:
 
 ```json
-[
-  {
-    "Name": "SharedDocs",
-    "Group": "ITUsers",
-    "Path": "\\fileserver\shared",
-    "DriveLetter": "Z"
-  }
-]
+{
+  "Domain": "corp.example.com",
+  "DriveMappings": [
+    {
+      "Name": "Files",
+      "Group": "intune_map_n_drive",
+      "Path": "\\\\fs01\\data",
+      "DriveLetter": "N"
+    },
+    {
+      "Name": "Photos",
+      "Group": "intune_map_o_drive",
+      "Path": "\\\\fs01\\photos",
+      "DriveLetter": "O"
+    }
+  ]
+}
+
 ```
 
 ## Compile Instructions
