@@ -2,14 +2,6 @@
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <OutputType>Exe</OutputType>
-
-    <!-- Add these for self-contained single-file deployment -->
-    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
-    <SelfContained>true</SelfContained>
-    <PublishSingleFile>true</PublishSingleFile>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-
     <AssemblyTitle>Install</AssemblyTitle>
     <Product>Install</Product>
     <Copyright>Copyright ©  2025</Copyright>

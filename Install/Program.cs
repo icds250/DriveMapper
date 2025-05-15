@@ -2,76 +2,129 @@
 using System.IO;
 using Microsoft.Win32.TaskScheduler;
 
-namespace DriveMapperInstaller
+namespace Install
 {
-    class Installer
+    class Program
     {
-        public static void Main(string[] args)
+        static void Main(string[] args)
         {
-            string exePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "DriveMapper.exe");
-
-            if (!File.Exists(exePath))
+            if (args.Length < 5)
             {
-                Console.WriteLine("DriveMapper.exe not found.");
+                Console.WriteLine("Usage: Install.exe <TargetDirectory> <ScheduledTaskArguments> <ExeName> <install|uninstall> <createTasks:true|false>");
+                Console.WriteLine();
+                Console.WriteLine("Examples:");
+                Console.WriteLine("  Install.exe \"C:\\Program Files\\DriveMapper\" \"-log -config config.json\" DriveMapper.exe install true");
+                Console.WriteLine("  Install.exe \"C:\\Program Files\\DriveMapper\" \"\" DriveMapper.exe uninstall false");
+                Console.WriteLine("  Install.exe \"C:\\Program Files\\DriveMapper\" \"\" DriveMapper.exe install false");
+                Console.WriteLine();
+                Console.WriteLine("Arguments:");
+                Console.WriteLine("  <TargetDirectory>           Folder where files will be copied");
+                Console.WriteLine("  <ScheduledTaskArguments>    Arguments passed to the exe in the scheduled tasks");
+                Console.WriteLine("  <ExeName>                  Executable name (e.g., DriveMapper.exe)");
+                Console.WriteLine("  <install|uninstall>         Install copies files and optionally creates scheduled tasks");
+                Console.WriteLine("  <createTasks:true|false>    Whether to create or remove scheduled tasks during install/uninstall");
                 return;
             }
 
-            CreateLogonTask("DriveMapperLogon", exePath, 10);
-            CreateNetworkChangeTask("DriveMapperNetworkChange", exePath, 10);
+            string targetDir = args[0];
+            string taskArgs = args[1];
+            string exeName = args[2];
+            string mode = args[3].ToLower();
+            bool createTasks = bool.TryParse(args[4], out bool ct) && ct;
 
-            Console.WriteLine("Scheduled tasks created successfully.");
-        }
+            string taskLogonName = exeName + "Logon";
+            string taskNetworkName = exeName + "NetworkChange";
 
-        private static void CreateLogonTask(string taskName, string exePath, int delaySeconds)
-        {
-            using (TaskService ts = new TaskService())
+            try
             {
-                ts.RootFolder.DeleteTask(taskName, false);
-
-                TaskDefinition td = ts.NewTask();
-                td.RegistrationInfo.Description = "DriveMapper - Runs at user logon";
-
-                td.Triggers.Add(new LogonTrigger
+                if (mode == "install")
                 {
-                    Delay = TimeSpan.FromSeconds(delaySeconds)
-                });
+                    Directory.CreateDirectory(targetDir);
 
-                td.Actions.Add(new ExecAction(exePath));
-                td.Principal.RunLevel = TaskRunLevel.Highest;
-                td.Principal.LogonType = TaskLogonType.InteractiveToken;
-                td.Settings.DisallowStartIfOnBatteries = false;
-                td.Settings.StopIfGoingOnBatteries = false;
+                    string currentDir = AppDomain.CurrentDomain.BaseDirectory;
+                    foreach (string file in Directory.GetFiles(currentDir))
+                    {
+                        string fileName = Path.GetFileName(file);
+                        string destPath = Path.Combine(targetDir, fileName);
+                        File.Copy(file, destPath, true);
+                    }
 
-                ts.RootFolder.RegisterTaskDefinition(taskName, td);
+                    if (createTasks)
+                    {
+                        string exePath = Path.Combine(targetDir, exeName);
+                        CreateScheduledTask(taskLogonName, exePath, taskArgs, TaskTriggerType.Logon);
+                        CreateScheduledTask(taskNetworkName, exePath, taskArgs, TaskTriggerType.NetworkChange);
+                    }
+
+                    Console.WriteLine("Installation complete.");
+                }
+                else if (mode == "uninstall")
+                {
+                    if (createTasks)
+                    {
+                        using (TaskService ts = new TaskService())
+                        {
+                            ts.RootFolder.DeleteTask(taskLogonName, false);
+                            ts.RootFolder.DeleteTask(taskNetworkName, false);
+                        }
+                    }
+
+                    if (Directory.Exists(targetDir))
+                    {
+                        Directory.Delete(targetDir, true);
+                    }
+
+                    Console.WriteLine("Uninstallation complete.");
+                }
+                else
+                {
+                    Console.WriteLine("Unknown mode. Use 'install' or 'uninstall'.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Operation failed: {ex.Message}");
             }
         }
 
-        private static void CreateNetworkChangeTask(string taskName, string exePath, int delaySeconds)
+        static void CreateScheduledTask(string taskName, string exePath, string arguments, TaskTriggerType triggerType)
         {
             using (TaskService ts = new TaskService())
             {
-                ts.RootFolder.DeleteTask(taskName, false);
-
                 TaskDefinition td = ts.NewTask();
-                td.RegistrationInfo.Description = "DriveMapper - Runs on network change";
+                td.RegistrationInfo.Description = $"Run {Path.GetFileName(exePath)} on {triggerType}";
 
-                // Event IDs for network connect/disconnect in NetworkProfile/Operational
-                td.Triggers.Add(new EventTrigger
+                switch (triggerType)
                 {
-                    Subscription = @"<QueryList><Query Id='0' Path='Microsoft-Windows-NetworkProfile/Operational'>
-                    <Select Path='Microsoft-Windows-NetworkProfile/Operational'>
-                    *[System[Provider[@Name='Microsoft-Windows-NetworkProfile'] and (EventID=10000 or EventID=10001)]]
-                    </Select></Query></QueryList>"
-                });
+                    case TaskTriggerType.Logon:
+                        td.Triggers.Add(new LogonTrigger { Delay = TimeSpan.FromSeconds(10) });
+                        break;
 
-                td.Actions.Add(new ExecAction(exePath));
-                td.Principal.RunLevel = TaskRunLevel.Highest;
-                td.Principal.LogonType = TaskLogonType.InteractiveToken;
-                td.Settings.DisallowStartIfOnBatteries = false;
-                td.Settings.StopIfGoingOnBatteries = false;
+                    case TaskTriggerType.NetworkChange:
+                        td.Triggers.Add(new EventTrigger
+                        {
+                            Subscription = @"<QueryList><Query Id='0' Path='Microsoft-Windows-NetworkProfile/Operational'>
+                                <Select Path='Microsoft-Windows-NetworkProfile/Operational'>
+                                    *[System[Provider[@Name='Microsoft-Windows-NetworkProfile'] and (EventID=10000 or EventID=10001)]]
+                                </Select>
+                            </Query></QueryList>"
+                        });
+                        break;
 
-                ts.RootFolder.RegisterTaskDefinition(taskName, td);
+                    default:
+                        throw new ArgumentException("Unsupported trigger type");
+                }
+
+                td.Actions.Add(new ExecAction(exePath, arguments, null));
+
+                ts.RootFolder.RegisterTaskDefinition(taskName, td, TaskCreation.CreateOrUpdate, "SYSTEM", null, TaskLogonType.ServiceAccount);
             }
+        }
+
+        enum TaskTriggerType
+        {
+            Logon,
+            NetworkChange
         }
     }
 }
