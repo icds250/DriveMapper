@@ -2,15 +2,15 @@
   "Domain": "corp.example.com",
   "DriveMappings": [
     {
-      "Name": "Data",
+      "Name": "Files",
       "Group": "intune_map_n_drive",
-      "Path": "\\\\server\\data",
+      "Path": "\\\\fs01\\data",
       "DriveLetter": "N"
     },
     {
       "Name": "Photos",
       "Group": "intune_map_o_drive",
-      "Path": "\\\\server\\photos",
+      "Path": "\\\\fs01\\photos",
       "DriveLetter": "O"
     }
   ]
