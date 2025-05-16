@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <OutputType>Exe</OutputType>
+    <OutputType>WinExe</OutputType>
 
     <!-- New properties for self-contained single-file publishing -->
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
