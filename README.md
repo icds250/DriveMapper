@@ -136,7 +136,7 @@ This utility is bundled alongside `Install.exe` and referenced within `config.js
 
 To deploy this installer via Intune:
 
-1. Package the following files using the [Microsoft Win32 Content Prep Tool](https://learn.microsoft.com/en-us/mem/intune/apps/apps-win32-app-management):
+1. Package the following files using the [Microsoft Win32 Content Prep Tool](https://learn.microsoft.com/en-us/mem/intune/apps/apps-win32-app-management) Self-Contained exe and config files can be found in the build directory:
    - `Install.exe`
    - `install.config.json`
    - `DriveMapper.exe`
