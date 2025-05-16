@@ -1,6 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Text;
 using Microsoft.Win32.TaskScheduler;
+using Newtonsoft.Json;
 
 namespace Install
 {
@@ -8,62 +12,55 @@ namespace Install
     {
         static void Main(string[] args)
         {
-            if (args.Length < 7)
+            if (args.Length != 2 || (args[1].ToLower() != "install" && args[1].ToLower() != "uninstall"))
             {
-                Console.WriteLine("Usage: Install.exe <TargetDirectory> <ScheduledTaskArguments> <exeName> <install|uninstall> <createLogonTask:true|false> <createNetworkTask:true|false> <createBootTask:true|false>");
-                Console.WriteLine();
-                Console.WriteLine("Examples:");
-                Console.WriteLine("  Install.exe \"C:\\Program Files\\DriveMapper\" \"-log -config config.json\" DriveMapper.exe install true true false");
-                Console.WriteLine("  Install.exe \"C:\\Program Files\\DriveMapper\" \"\" DriveMapper.exe uninstall false false false");
-                Console.WriteLine("  Install.exe \"C:\\Program Files\\DriveMapper\" \"\" DriveMapper.exe install true false false");
-                Console.WriteLine();
-                Console.WriteLine("Arguments:");
-                Console.WriteLine("  <TargetDirectory>           Folder where files will be copied");
-                Console.WriteLine("  <ScheduledTaskArguments>    Arguments passed to exe in the scheduled tasks");
-                Console.WriteLine("  <exeName>                  Executable name to run");
-                Console.WriteLine("  <install|uninstall>         Install copies files and optionally creates scheduled tasks");
-                Console.WriteLine("  <createLogonTask:true|false>    Create or delete Logon trigger task");
-                Console.WriteLine("  <createNetworkTask:true|false>  Create or delete Network Profile Event trigger task");
-                Console.WriteLine("  <createBootTask:true|false>     Create or delete Boot trigger task");
+                Console.WriteLine("Usage: Install.exe <config.json> <install|uninstall>");
                 return;
             }
 
-            string targetDir = args[0];
-            string taskArgs = args[1];
-            string exeName = args[2];
-            string mode = args[3].ToLower();
-            bool createLogonTask = bool.TryParse(args[4], out bool clt) && clt;
-            bool createNetworkTask = bool.TryParse(args[5], out bool cnt) && cnt;
-            bool createBootTask = bool.TryParse(args[6], out bool cbt) && cbt;
+            string configPath = args[0];
+            string mode = args[1].ToLower();
 
-            string logonTaskName = exeName;
-            string networkTaskName = exeName + "_NetworkChange";
-            string bootTaskName = exeName + "_Boot";
+            if (!File.Exists(configPath))
+            {
+                Console.WriteLine($"Config file not found: {configPath}");
+                return;
+            }
+
+            Config config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(configPath));
+
+            string logonTaskName = config.ExeName;
+            string networkTaskName = config.ExeName + "_NetworkChange";
+            string bootTaskName = config.ExeName + "_Boot";
 
             try
             {
                 if (mode == "install")
                 {
-                    Directory.CreateDirectory(targetDir);
+                    Directory.CreateDirectory(config.TargetDirectory);
 
                     string currentDir = AppDomain.CurrentDomain.BaseDirectory;
                     foreach (string file in Directory.GetFiles(currentDir))
                     {
                         string fileName = Path.GetFileName(file);
-                        string destPath = Path.Combine(targetDir, fileName);
+                        string destPath = Path.Combine(config.TargetDirectory, fileName);
                         File.Copy(file, destPath, true);
                     }
 
-                    string exePath = Path.Combine(targetDir, exeName);
+                    string exePath = Path.Combine(config.TargetDirectory, config.ExeName);
 
-                    if (createLogonTask)
-                        CreateScheduledTask(logonTaskName, exePath, taskArgs, TaskTriggerType.Logon);
+                    foreach (var task in config.ScheduledTasks)
+                    {
+                        if (task.CreateLogonTask)
+                            CreateScheduledTask(task.TaskName ?? logonTaskName, exePath, task.Arguments, TaskTriggerType.Logon);
+                        if (task.CreateNetworkTask)
+                            CreateScheduledTask((task.TaskName ?? logonTaskName) + "_NetworkChange", exePath, task.Arguments, TaskTriggerType.NetworkProfile);
+                        if (task.CreateBootTask)
+                            CreateScheduledTask((task.TaskName ?? logonTaskName) + "_Boot", exePath, task.Arguments, TaskTriggerType.Boot);
+                    }
 
-                    if (createNetworkTask)
-                        CreateScheduledTask(networkTaskName, exePath, taskArgs, TaskTriggerType.NetworkProfile);
-
-                    if (createBootTask)
-                        CreateScheduledTask(bootTaskName, exePath, taskArgs, TaskTriggerType.Boot);
+                    if (!string.IsNullOrWhiteSpace(config.ShortcutName))
+                        CreateStartMenuShortcut(config.ShortcutName, exePath);
 
                     Console.WriteLine("Installation complete.");
                 }
@@ -71,26 +68,28 @@ namespace Install
                 {
                     using (TaskService ts = new TaskService())
                     {
-                        if (createLogonTask)
-                            ts.RootFolder.DeleteTask(logonTaskName, false);
-
-                        if (createNetworkTask)
-                            ts.RootFolder.DeleteTask(networkTaskName, false);
-
-                        if (createBootTask)
-                            ts.RootFolder.DeleteTask(bootTaskName, false);
+                        foreach (var task in config.ScheduledTasks)
+                        {
+                            if (task.CreateLogonTask)
+                                ts.RootFolder.DeleteTask(task.TaskName ?? logonTaskName, false);
+                            if (task.CreateNetworkTask)
+                                ts.RootFolder.DeleteTask((task.TaskName ?? logonTaskName) + "_NetworkChange", false);
+                            if (task.CreateBootTask)
+                                ts.RootFolder.DeleteTask((task.TaskName ?? logonTaskName) + "_Boot", false);
+                        }
                     }
 
-                    if (Directory.Exists(targetDir))
+                    if (Directory.Exists(config.TargetDirectory))
+                        Directory.Delete(config.TargetDirectory, true);
+
+                    if (!string.IsNullOrWhiteSpace(config.ShortcutName))
                     {
-                        Directory.Delete(targetDir, true);
+                        string startMenuPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs", config.ShortcutName + ".lnk");
+                        if (File.Exists(startMenuPath))
+                            File.Delete(startMenuPath);
                     }
 
                     Console.WriteLine("Uninstallation complete.");
-                }
-                else
-                {
-                    Console.WriteLine("Unknown mode. Use 'install' or 'uninstall'.");
                 }
             }
             catch (Exception ex)
@@ -121,16 +120,63 @@ namespace Install
                 };
 
                 td.Triggers.Add(trigger);
-
                 td.Actions.Add(new ExecAction(exePath, arguments, null));
-
-                // Configure the principal directly instead of assigning a new instance
-                //td.Principal.UserId = "SYSTEM";
-                //td.Principal.LogonType = TaskLogonType.ServiceAccount;
-                //td.Principal.GroupId = "S-1-5-32-545"; // Users group SID
-
                 ts.RootFolder.RegisterTaskDefinition(taskName, td, TaskCreation.CreateOrUpdate, "Authenticated Users", null, TaskLogonType.Group);
             }
+        }
+
+        [ComImport]
+        [Guid("00021401-0000-0000-C000-000000000046")]
+        private class ShellLink { }
+
+        [ComImport]
+        [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        [Guid("000214F9-0000-0000-C000-000000000046")]
+        private interface IShellLink
+        {
+            void GetPath([Out] StringBuilder pszFile, int cchMaxPath, out IntPtr pfd, int fFlags);
+            void GetIDList(out IntPtr ppidl);
+            void SetIDList(IntPtr pidl);
+            void GetDescription([Out] StringBuilder pszName, int cchMaxName);
+            void SetDescription([MarshalAs(UnmanagedType.LPWStr)] string pszName);
+            void GetWorkingDirectory([Out] StringBuilder pszDir, int cchMaxPath);
+            void SetWorkingDirectory([MarshalAs(UnmanagedType.LPWStr)] string pszDir);
+            void GetArguments([Out] StringBuilder pszArgs, int cchMaxPath);
+            void SetArguments([MarshalAs(UnmanagedType.LPWStr)] string pszArgs);
+            void GetHotkey(out short pwHotkey);
+            void SetHotkey(short wHotkey);
+            void GetShowCmd(out int piShowCmd);
+            void SetShowCmd(int iShowCmd);
+            void GetIconLocation([Out] StringBuilder pszIconPath, int cchIconPath, out int piIcon);
+            void SetIconLocation([MarshalAs(UnmanagedType.LPWStr)] string pszIconPath, int iIcon);
+            void SetRelativePath([MarshalAs(UnmanagedType.LPWStr)] string pszPathRel, int dwReserved);
+            void Resolve(IntPtr hwnd, int fFlags);
+            void SetPath([MarshalAs(UnmanagedType.LPWStr)] string pszFile);
+        }
+
+        [ComImport]
+        [Guid("0000010b-0000-0000-C000-000000000046")]
+        [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+        private interface IPersistFile
+        {
+            void GetClassID(out Guid pClassID);
+            void IsDirty();
+            void Load([MarshalAs(UnmanagedType.LPWStr)] string pszFileName, uint dwMode);
+            void Save([MarshalAs(UnmanagedType.LPWStr)] string pszFileName, bool fRemember);
+            void SaveCompleted([MarshalAs(UnmanagedType.LPWStr)] string pszFileName);
+            void GetCurFile([MarshalAs(UnmanagedType.LPWStr)] out string ppszFileName);
+        }
+
+        static void CreateStartMenuShortcut(string shortcutName, string targetPath)
+        {
+            string shortcutPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonStartMenu), "Programs", shortcutName + ".lnk");
+
+            IShellLink link = (IShellLink)new ShellLink();
+            link.SetDescription(shortcutName);
+            link.SetPath(targetPath);
+            link.SetWorkingDirectory(Path.GetDirectoryName(targetPath));
+
+            ((IPersistFile)link).Save(shortcutPath, false);
         }
 
         enum TaskTriggerType
@@ -138,6 +184,23 @@ namespace Install
             Logon,
             NetworkProfile,
             Boot
+        }
+
+        class Config
+        {
+            public string TargetDirectory { get; set; }
+            public string ExeName { get; set; }
+            public string ShortcutName { get; set; }
+            public List<ScheduledTaskConfig> ScheduledTasks { get; set; }
+        }
+
+        class ScheduledTaskConfig
+        {
+            public string TaskName { get; set; }
+            public string Arguments { get; set; }
+            public bool CreateLogonTask { get; set; }
+            public bool CreateNetworkTask { get; set; }
+            public bool CreateBootTask { get; set; }
         }
     }
 }

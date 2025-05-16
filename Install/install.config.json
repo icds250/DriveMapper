@@ -1,0 +1,14 @@
+{
+  "TargetDirectory": "C:\\Program Files\\DriveMapper",
+  "ExeName": "DriveMapper.exe",
+  "ShortcutName": "",
+  "ScheduledTasks": [
+    {
+      "TaskName": "DriveMapper",
+      "Arguments": "",
+      "CreateLogonTask": true,
+      "CreateNetworkTask": true,
+      "CreateBootTask": false
+    }
+  ]
+}

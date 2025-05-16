@@ -17,7 +17,16 @@
     <FileVersion>1.0.0.0</FileVersion>
   </PropertyGroup>
   <ItemGroup>
+    <None Remove="install.config.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="install.config.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="TaskScheduler" Version="2.12.1" />
   </ItemGroup>
 </Project>
