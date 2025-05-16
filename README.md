@@ -154,4 +154,4 @@ To deploy this installer via Intune:
 
 ## License
 
-GPL. Use freely with credit.
+GPL. Use freely with credit www.cloudcondensate.ca <info@cloudcondensate.ca>
