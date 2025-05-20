@@ -1,10 +1,11 @@
-﻿using System;
+﻿using Microsoft.Win32;
+using Microsoft.Win32.TaskScheduler;
+using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-using Microsoft.Win32.TaskScheduler;
-using Newtonsoft.Json;
 
 namespace Install
 {
@@ -32,6 +33,7 @@ namespace Install
             string logonTaskName = config.ExeName;
             string networkTaskName = config.ExeName + "_NetworkChange";
             string bootTaskName = config.ExeName + "_Boot";
+            string exeKey = Path.GetFileNameWithoutExtension(config.ExeName);
 
             try
             {
@@ -62,6 +64,12 @@ namespace Install
                     if (!string.IsNullOrWhiteSpace(config.ShortcutName))
                         CreateStartMenuShortcut(config.ShortcutName, exePath);
 
+                    // Write version to registry under HKLM\Software\<ExeName>
+                    using (var key = Microsoft.Win32.Registry.LocalMachine.CreateSubKey($@"SOFTWARE\{exeKey}"))
+                    {
+                        key.SetValue("Version", config.Version ?? "Unknown", Microsoft.Win32.RegistryValueKind.String);
+                    }
+
                     Console.WriteLine("Installation complete.");
                 }
                 else if (mode == "uninstall")
@@ -87,6 +95,11 @@ namespace Install
                         string startMenuPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.StartMenu), "Programs", config.ShortcutName + ".lnk");
                         if (File.Exists(startMenuPath))
                             File.Delete(startMenuPath);
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(exeKey))
+                    {
+                        Registry.LocalMachine.DeleteSubKeyTree($@"SOFTWARE\{exeKey}", false);
                     }
 
                     Console.WriteLine("Uninstallation complete.");
@@ -191,6 +204,7 @@ namespace Install
             public string TargetDirectory { get; set; }
             public string ExeName { get; set; }
             public string ShortcutName { get; set; }
+            public string Version { get; set; }
             public List<ScheduledTaskConfig> ScheduledTasks { get; set; }
         }
 

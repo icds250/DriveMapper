@@ -31,6 +31,7 @@ The installer reads all parameters from a JSON file. Example:
   "TargetDirectory": "C:\\Program Files\\DriveMapper",
   "ExeName": "DriveMapper.exe",
   "ShortcutName": "Drive Mapper",
+  "Version": "1",
   "ScheduledTasks": [
     {
       "TaskName": "DriveMapper-Logon",
@@ -57,6 +58,7 @@ The installer reads all parameters from a JSON file. Example:
 | `TargetDirectory` | The directory where files will be copied. |
 | `ExeName` | The main executable name to launch from tasks and shortcut. |
 | `ShortcutName` | (Optional) Name for Start Menu shortcut. If omitted, no shortcut is created. |
+| `Version` | Set the version number in the registry to target Intune detection rules. |
 | `ScheduledTasks` | Array of scheduled task definitions. |
 | `TaskName` | (Optional) Name of the scheduled task. If omitted, uses `ExeName`. |
 | `Arguments` | Arguments to pass when the task is triggered. |
@@ -148,7 +150,7 @@ To deploy this installer via Intune:
    - Create a new Win32 app.
    - Set the install command to: `Install.exe install.config.json install`
    - Set the uninstall command to: `Install.exe install.config.json uninstall`
-   - Configure detection rules to check for the existence of the target EXE path or scheduled task.
+   - Configure detection rules to check for the existence of the target HKLM/exeName/Version set by the installer.
    - Assign to user or device groups as needed.
 
 
