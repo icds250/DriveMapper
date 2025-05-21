@@ -1,4 +1,7 @@
 # Drivemapper and Installer
+
+Deploy these applications together as an intunewin win32 app to map on-prem file shares on an Entra ID joined device (cloud only).
+
 ## About install.exe
 
 Installer is a standalone .NET 8 installer utility that copies files to a target directory, registers scheduled tasks, and optionally creates a Start Menu shortcut. It's designed to be deployed via Intune or manually, with parameters provided via a JSON configuration file.
