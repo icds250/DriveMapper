@@ -134,7 +134,7 @@ namespace Install
 
                 td.Triggers.Add(trigger);
                 td.Actions.Add(new ExecAction(exePath, arguments, null));
-                ts.RootFolder.RegisterTaskDefinition(taskName, td, TaskCreation.CreateOrUpdate, "Authenticated Users", null, TaskLogonType.Group);
+                ts.RootFolder.RegisterTaskDefinition(taskName, td, TaskCreation.CreateOrUpdate, null, null, TaskLogonType.InteractiveToken);
             }
         }
 
