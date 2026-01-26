@@ -130,7 +130,8 @@ namespace Install
                         Subscription = @"<QueryList><Query Id='0' Path='Microsoft-Windows-NetworkProfile/Operational'>
                             <Select Path='Microsoft-Windows-NetworkProfile/Operational'>
                             *[System[Provider[@Name='Microsoft-Windows-NetworkProfile'] and (EventID=10000 or EventID=10001)]]
-                            </Select></Query></QueryList>"
+                            </Select></Query></QueryList>",
+                        Delay = TimeSpan.FromSeconds(10) 
                     },
                     TaskTriggerType.Boot => new BootTrigger { Delay = TimeSpan.FromSeconds(10) },
                     _ => throw new ArgumentException("Unsupported trigger type")
